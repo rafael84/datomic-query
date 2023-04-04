@@ -37,15 +37,15 @@
       helper/remove-nils))
 
 (def tasks
-  ;;     title                team-name   pririty   completed  due-date
-  [(task "Wash the dishes"    "Alpha"     :low      false      nil)
-   (task "Clean the windows"  "Gamma"     :medium   false      #inst "2024-01")
+  ;;     title                team-name   priority  completed  due-date
+  [(task "Wash the dishes"    "Alpha"     :low      true       nil)
    (task "Take out the trash" "Alpha"     :medium   false      nil)
-   (task "Water the plants"   "Beta"      :high     false      nil)
-   (task "Mow the lawn"       "Beta"      :medium   false      #inst "2023-12")
-   (task "Sweep the floor"    "Gamma"     :low      false      #inst "2023-11-15")
-   (task "Vacuum the carpet"  nil         :medium   false      nil)
    (task "Dust the shelves"   "Alpha"     :high     true       nil)
    (task "Do the laundry"     "Beta"      :medium   true       nil)
-   (task "Iron the clothes"   "Alpha"     :low      false      nil)
+   (task "Iron the clothes"   "Beta"      :low      false      nil)
+   (task "Water the plants"   "Beta"      :high     false      nil)
+   (task "Mow the lawn"       "Beta"      :medium   false      #inst "2023-12")
+   (task "Clean the windows"  "Gamma"     :medium   false      #inst "2024-01")
+   (task "Sweep the floor"    "Gamma"     :low      false      #inst "2023-11-15")
+   (task "Vacuum the carpet"  nil         :medium   false      nil)
    (task "Clean the bathroom" nil         :high     true       nil)])
