@@ -14,14 +14,27 @@
         _ @(d/transact conn tasks/tasks)
         db (d/db conn)]
 
+    ;;
+    ;; Find Specifications
+    ;;
+    ;; Where bindings control inputs, find specifications control results.
+    ;;
+    ;;     Find Spec	        Returns	        Java Type Returned
+    ;;     :find ?a ?b	      relation	      Collection of Lists
+    ;;     :find [?a …]	      collection	    Collection
+    ;;     :find [?a ?b]	    single tuple	  List
+    ;;     :find ?a .	        single scalar 	Scalar Value
+
+    ;;
+    ;; The relation find spec is the most common, and the most general.
+    ;;
+    ;; It will return a tuple for each result, with values in each tuple
+    ;; matching the named variables.
+    ;;
+
     (testing "there are three `teams`: `Alpha`, `Beta` and `Gamma` (set of tuples format)"
       (is (match? #{["Alpha"] ["Beta"] ["Gamma"]}
-                  (d/q '[:find ?name ;; the results is set of tuples
-                         :where [_ :team/name ?name]] db))))
-
-    (testing "there are three `teams`: `Alpha`, `Beta` and `Gamma` (vector format)"
-      (is (match? (m/in-any-order ["Alpha" "Beta" "Gamma"])
-                  (d/q '[:find [?name ...] ;; ... makes the returned data be a vector
+                  (d/q '[:find ?name
                          :where [_ :team/name ?name]] db))))
 
     (testing "the `business-unit` of the `Gamma` team is `Omega` (single value inside a set of tuples)"
@@ -32,13 +45,14 @@
                          [?t :team/business-unit ?bu]]
                        db))))
 
-    (testing "the `business-unit` of the `Gamma` team is `Omega` (single value)"
-      (is (match? "Omega"
-                  (d/q '[:find ?bu . ;; the dot notation extracts a single value
-                         :where
-                         [?t :team/name "Gamma"]
-                         [?t :team/business-unit ?bu]]
-                       db))))
+    ;;
+    ;; The collection find spec is useful when you are only interested in a single variable.
+    ;;
+
+    (testing "there are three `teams`: `Alpha`, `Beta` and `Gamma` (vector format)"
+      (is (match? (m/in-any-order ["Alpha" "Beta" "Gamma"])
+                  (d/q '[:find [?name ...]
+                         :where [_ :team/name ?name]] db))))
 
     (testing "tasks with `due-date`"
       (is (match? (m/in-any-order ["Clean the windows"
@@ -48,6 +62,37 @@
                          :where
                          [?t :task/due-date]
                          [?t :task/title ?title]]
+                       db))))
+
+    ;;
+    ;; The single tuple find spec is useful when you are interested in multiple variables,
+    ;; but expect only a single result.
+    ;;
+    ;; The form [?priority ?due-date ?completed] below returns a single triple,
+    ;; not wrapped in a relation.
+    ;;
+
+    (testing "a summary of the `Sweep the floor` task"
+      (is (match? [:low #inst "2023-11-15" false]
+                  (d/q '[:find [?priority ?due-date ?completed]
+                         :where
+                         [?t :task/title "Sweep the floor"]
+                         [?t :task/priority ?priority]
+                         [?t :task/due-date ?due-date]
+                         [?t :task/completed ?completed]]
+                       db))))
+
+    ;;
+    ;; The scalar find spec is useful when you want to return a single value
+    ;; of a single variable. The form `?bu` below returns a single scalar value:
+    ;;
+
+    (testing "the `business-unit` of the `Gamma` team is `Omega` (single value)"
+      (is (match? "Omega"
+                  (d/q '[:find ?bu .
+                         :where
+                         [?t :team/name "Gamma"]
+                         [?t :team/business-unit ?bu]]
                        db))))
 
     (testing "tasks for `2024`"
@@ -96,6 +141,13 @@
                          [?task :task/title ?title]]
                        db :high))))
 
+    ;;
+    ;; Not Clauses
+    ;;
+    ;; not clauses allow you to express that one or more logic variables inside
+    ;; a query must not satisfy all of a set of predicates.
+    ;;
+
     (testing "total unassigned tasks"
       (is (match? 2
                   (d/q '[:find (count ?task) .
@@ -104,6 +156,24 @@
                          (not [?task :task/team])]
                        db))))
 
+    (testing "teams without high priority tasks"
+      (is (match? "Gamma"
+                  (d/q '[:find ?team-name .
+                         :where
+                         [?team :team/name ?team-name]
+                         (not-join [?team]
+                                   [?task :task/team ?team]
+                                   [?task :task/priority :high])]
+                       db))))
+
+    ;;
+    ;; Collection Binding
+    ;;
+    ;; A collection binding binds a single variable to multiple values
+    ;; passed in as a collection. This can be used to ask "or" questions
+    ;;
+    ;; https://docs.datomic.com/on-prem/query/query.html#collection-binding
+    ;;
     (testing "tasks for teams `Beta` OR `Gamma`"
       (is (match? 6
                   (d/q '[:find (count ?task) .
@@ -113,6 +183,16 @@
                          [?team :team/name ?teams]]
                        db ["Beta" "Gamma"]))))
 
+    ;;
+    ;; Relation Binding
+    ;;
+    ;; A relation binding is fully general, binding multiple variables positionally to a
+    ;; relation (collection of tuples) passed in.
+    ;;
+    ;; This can be used to ask "or" questions involving multiple variables.
+    ;;
+    ;; https://docs.datomic.com/on-prem/query/query.html#relation-binding
+    ;;
     (testing "(pending AND low priority) OR (completed AND medium priority) tasks"
       (is (match? #{["Gamma" "Sweep the floor" false]
                     ["Beta" "Iron the clothes" false]
@@ -126,5 +206,7 @@
                          [?task :task/team ?team]
                          [?team :team/name ?team-name]]
                        db [[:low false]
-                           [:medium true]]))))))
+                           [:medium true]]))))
+
+    :rc))
 

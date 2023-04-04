@@ -1,4 +1,4 @@
-(ns datomic-query.tasks 
+(ns datomic-query.tasks
   (:require
    [datomic-query.helper :as helper]))
 

@@ -1,4 +1,4 @@
-(ns datomic-query.database 
+(ns datomic-query.database
   (:require
    [datomic.api :as d]))
 
