@@ -336,3 +336,18 @@
                             {:inventory/colors [:db/ident]}]
                           [:inventory/sku "white-pants"]))))))
 
+(deftest reverse-lookup-test
+  (let [conn (database/recreate)
+        _ @(d/transact conn tasks/schema)
+        _ @(d/transact conn tasks/teams)
+        _ @(d/transact conn tasks/tasks)
+        db (d/db conn)]
+    (testing "reverse lookup"
+      (is (match? {:team/business-unit "Sigma"
+                   :task/_team [#:task{:title "Do the laundry"   :priority :medium :completed true}
+                                #:task{:title "Iron the clothes" :priority :low    :completed false}
+                                #:task{:title "Water the plants" :priority :high   :completed false}
+                                #:task{:title "Mow the lawn"     :priority :medium :completed false}]}
+                  (d/q '[:find (pull ?team [:team/business-unit
+                                            {:task/_team [:task/title :task/priority :task/completed]}]) .
+                         :where [?team :team/name "Beta"]] db))))))
