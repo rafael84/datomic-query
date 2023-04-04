@@ -2,6 +2,7 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [datomic-query.database :as database]
+   [datomic-query.inventory :as inventory]
    [datomic-query.tasks :as tasks]
    [datomic.api :as d]
    [matcher-combinators.matchers :as m]
@@ -74,7 +75,7 @@
     ;;     :find ?a .	        single scalar 	Scalar Value
 
     ;;
-    ;; The relation find spec is the most common, and the most general.
+    ;; The `relation` find spec is the most common, and the most general.
     ;;
     ;; It will return a tuple for each result, with values in each tuple
     ;; matching the named variables.
@@ -96,7 +97,7 @@
                        db))))
 
     ;;
-    ;; The collection find spec is useful when you are only interested in a single variable.
+    ;; The `collection` find spec is useful when you are only interested in a single variable.
     ;;
 
     (testing "there are three `teams`: `Alpha`, `Beta` and `Gamma` (vector format)"
@@ -115,7 +116,7 @@
                        db))))
 
     ;;
-    ;; The single tuple find spec is useful when you are interested in multiple variables,
+    ;; The `single tuple` find spec is useful when you are interested in multiple variables,
     ;; but expect only a single result.
     ;;
     ;; The form [?priority ?due-date ?completed] below returns a single triple,
@@ -133,8 +134,8 @@
                        db))))
 
     ;;
-    ;; The scalar find spec is useful when you want to return a single value
-    ;; of a single variable. The form `?bu` below returns a single scalar value:
+    ;; The `scalar` find spec is useful when you want to return a single value
+    ;; of a single variable.
     ;;
 
     (testing "the `business-unit` of the `Gamma` team is `Omega` (single value)"
@@ -178,7 +179,14 @@
                          [?task :task/completed false]
                          [?task :task/team ?team]
                          [?team :team/business-unit ?bu]]
-                       db))))
+                       db))))))
+
+(deftest parameterized-query-test
+  (let [conn (database/recreate)
+        _ @(d/transact conn tasks/schema)
+        _ @(d/transact conn tasks/teams)
+        _ @(d/transact conn tasks/tasks)
+        db (d/db conn)]
 
     (testing "high priority tasks"
       (is (match? (m/in-any-order ["Water the plants"
@@ -256,7 +264,44 @@
                          [?task :task/team ?team]
                          [?team :team/name ?team-name]]
                        db [[:low false]
-                           [:medium true]]))))
+                           [:medium true]]))))))
 
-    :rc))
+(deftest function-expressions-test
+  (let [conn (database/recreate)
+        _ @(d/transact conn tasks/schema)
+        _ @(d/transact conn tasks/teams)
+        _ @(d/transact conn tasks/tasks)
+        db (d/db conn)]
 
+    (testing "task with 12 or less characters in its title"
+      (is (match? "Mow the lawn"
+                  (d/q '[:find ?title .
+                         :where
+                         [?task :task/title ?title]
+                         [(count ?title) ?title-size]
+                         [(<= ?title-size 12)]] ;; cannot be nested
+                       db))))))
+
+(deftest pull-test
+  (let [conn (database/recreate)
+        _ @(d/transact conn inventory/schema)
+        _ @(d/transact conn inventory/inventory)
+        db (d/db conn)]
+
+    (testing "pull black shirt data"
+      (is (match? {:inventory/sku "black-shirt"
+                   :inventory/colors [{:db/id int?}]
+                   :inventory/type {:db/id int?}
+                   :inventory/price 10}
+                  (d/q '[:find (pull ?i [*]) .
+                         :where [?i :inventory/sku "black-shirt"]] db))))
+
+    (testing "pull black shirt data, with references"
+      (is (match? {:inventory/sku "black-shirt"
+                   :inventory/colors [{:db/ident :black}]
+                   :inventory/type {:db/ident :shirt}
+                   :inventory/price 10}
+                  (d/q '[:find (pull ?i [*
+                                         {:inventory/type [:db/ident]}
+                                         {:inventory/colors [:db/ident]}]) .
+                         :where [?i :inventory/sku "black-shirt"]] db))))))
