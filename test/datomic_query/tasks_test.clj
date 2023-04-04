@@ -7,7 +7,54 @@
    [matcher-combinators.matchers :as m]
    [matcher-combinators.test :refer [match?]]))
 
-(deftest teams-and-tasks-test
+;;
+;; BASICS
+;;
+;;         Datomic is a database system that stores data as immutable facts,
+;;         which are called "datoms".
+;;
+;;         A datom represents a piece of information in the form of a tuple
+;;         with four components:
+;;
+;;           - Entity ID:       a unique identifier for the entity that the
+;;                              datom pertains to.
+;;
+;;           - Attribute ID:    a unique identifier for the attribute that
+;;                              the datom pertains to.
+;;
+;;           - Value:           the value of the attribute for the entity.
+;;
+;;           - Transaction ID:  a unique identifier for the transaction that
+;;                              added the datom to the database.
+;;
+;;         The combination of these four components forms a unique identifier
+;;         for each datom in the database.
+;;
+;;         Datoms are always added to the database as part of a transaction,
+;;         and once added, they cannot be modified or deleted.
+;;
+;; DATOMS
+;;
+;;        +--------+-----------------+---------------------------+--------+
+;;        | Entity | Attribute       | Value                     | Tx     |
+;;        +--------+-----------------+---------------------------+--------+
+;;        | 1      | :db/ident       | :task/title               | 1000   |
+;;        | 2      | :db/ident       | :task/description         | 1000   |
+;;        | 3      | :db/ident       | :task/completed           | 1000   |
+;;        | 4      | :db/ident       | :task/due-date            | 1000   |
+;;        | 5      | :db/ident       | :task/priority            | 1000   |
+;;        | 1001   | :task/title     | "Task 1"                  | 2000   |
+;;        | 1001   | :task/completed | false                     | 2000   |
+;;        | 1001   | :task/due-date  | "2023-05-01T10:00:00.000" | 2000   |
+;;        | 1001   | :task/priority  | :high                     | 2000   |
+;;        | 1002   | :task/title     | "Task 2"                  | 3000   |
+;;        | 1002   | :task/completed | true                      | 3000   |
+;;        | 1002   | :task/due-date  | "2023-05-05T14:00:00.000" | 3000   |
+;;        | 1002   | :task/priority  | :medium                   | 3000   |
+;;        +--------+-----------------+---------------------------+--------+
+;;
+
+(deftest basics-test
   (let [conn (database/recreate)
         _ @(d/transact conn tasks/schema)
         _ @(d/transact conn tasks/teams)
@@ -20,6 +67,7 @@
     ;; Where bindings control inputs, find specifications control results.
     ;;
     ;;     Find Spec	        Returns	        Java Type Returned
+    ;;
     ;;     :find ?a ?b	      relation	      Collection of Lists
     ;;     :find [?a …]	      collection	    Collection
     ;;     :find [?a ?b]	    single tuple	  List
@@ -33,7 +81,9 @@
     ;;
 
     (testing "there are three `teams`: `Alpha`, `Beta` and `Gamma` (set of tuples format)"
-      (is (match? #{["Alpha"] ["Beta"] ["Gamma"]}
+      (is (match? #{["Alpha"]
+                    ["Beta"]
+                    ["Gamma"]}
                   (d/q '[:find ?name
                          :where [_ :team/name ?name]] db))))
 
