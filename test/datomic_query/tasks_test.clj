@@ -282,6 +282,15 @@
                          [(<= ?title-size 12)]] ;; cannot be nested
                        db))))))
 
+;;
+;; Datomic Pull
+;;
+;; Pull is a declarative way to make hierarchical (and possibly nested) selections
+;; of information about entities.
+;;
+;; Pull applies a pattern to a collection of entities, building a map for each entity.
+;;
+
 (deftest pull-test
   (let [conn (database/recreate)
         _ @(d/transact conn inventory/schema)
@@ -304,4 +313,26 @@
                   (d/q '[:find (pull ?i [*
                                          {:inventory/type [:db/ident]}
                                          {:inventory/colors [:db/ident]}]) .
-                         :where [?i :inventory/sku "black-shirt"]] db))))))
+                         :where [?i :inventory/sku "black-shirt"]] db))))
+
+    (testing "pull purple white shirt data, with references"
+      (is (match? {:inventory/sku "purple-white-shirt"
+                   :inventory/colors (m/in-any-order [{:db/ident :purple}
+                                                      {:db/ident :white}])
+                   :inventory/type {:db/ident :shirt}
+                   :inventory/price 25}
+                  (d/q '[:find (pull ?i [*
+                                         {:inventory/type [*]}
+                                         {:inventory/colors [*]}]) .
+                         :where [?i :inventory/sku "purple-white-shirt"]] db))))
+
+    (testing "pull white pants data, with references, using `d/pull`"
+      (is (match? {:inventory/sku "white-pants"
+                   :inventory/colors [{:db/ident :white}]
+                   :inventory/type {:db/ident :pants}
+                   :inventory/price 30}
+                  (d/pull db
+                          '[* {:inventory/type [:db/ident]}
+                            {:inventory/colors [:db/ident]}]
+                          [:inventory/sku "white-pants"]))))))
+
