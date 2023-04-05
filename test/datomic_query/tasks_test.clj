@@ -378,3 +378,37 @@
                   (d/q '[:find (pull ?team [:team/business-unit
                                             {:task/_team [:task/title :task/priority :task/completed]}]) .
                          :where [?team :team/name "Beta"]] db))))))
+
+(deftest history-test
+  (let [conn (database/recreate)
+        _ @(d/transact conn tasks/schema)
+        _ @(d/transact conn tasks/teams)
+        _ @(d/transact conn tasks/tasks)
+        task-title "Water the plants"
+        task-id (d/q '[:find ?t .
+                       :in $ ?task-title
+                       :where [?t :task/title ?task-title]]
+                     (d/db conn) task-title)]
+
+    (testing "the only record is: task is not completed"
+      (is (match? [int? false]
+                  (d/q '[:find [?tx ?v]
+                         :in $ ?task-title
+                         :where
+                         [?task :task/title ?task-title]
+                         [?task :task/completed ?v ?tx]]
+                       (d/history (d/db conn)) task-title))))
+
+    (testing "there are three records and the last one states that the task is completed"
+      (let [_ @(d/transact conn [[:db/add task-id :task/completed true]])]
+        (is (match? [[inst? false true]   ;; t+0 completed is false (added)
+                     [inst? false false]  ;; t+1 completed is false (retracted)
+                     [inst? true true]]   ;; t+2 completed is true (added)
+                    (->> (d/q '[:find ?when ?v ?op
+                                :in $ ?task-title
+                                :where
+                                [?task :task/title ?task-title]
+                                [?task :task/completed ?v ?tx ?op]
+                                [?tx :db/txInstant ?when]]
+                              (d/history (d/db conn)) task-title)
+                         (sort-by first))))))))
