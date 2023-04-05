@@ -172,7 +172,7 @@
                        db ;; this is $database
                        ))))
 
-    (testing "when there is just one `$database`, ofter we use just `$`"
+    (testing "when there is just one `$database`, often we use just `$`"
       (is (match? 3
                   (d/q '[:find (count ?name) .
                          :in $
