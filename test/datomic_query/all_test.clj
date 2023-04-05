@@ -1,4 +1,4 @@
-(ns datomic-query.tasks-test
+(ns datomic-query.all-test
   (:require
    [clojure.test :refer [deftest is testing]]
    [datomic-query.database :as database]
@@ -8,98 +8,16 @@
    [matcher-combinators.matchers :as m]
    [matcher-combinators.test :refer [match?]]))
 
-(deftest query-using-my-own-data-test
-  (let [facts [[:bruna    :human?   true]
-               [:bruna    :likes    "sushi"]
-               [:enzo     :human?   false]
-               [:enzo     :likes    "sushi"]
-               [:rafa     :likes    "barbecue"]
-               [:rafa     :human?   true]
-               [:garfield :likes    "lasagna"]
-               [:garfield :human?   false]]]
-    (testing "rafa likes barbecue"
-      (is (match? :rafa
-                  (d/q '[:find ?who .
-                         :where [?who :likes "barbecue"]] facts))))
-    (testing "there are two humans"
-      (is (match? 2
-                  (d/q '[:find (count ?who) .
-                         :where [?who :human? true]] facts))))
-    (testing "sushi is the favorite food"
-      (is (match? ["sushi"]
-                  (d/q '[:find (max 1 ?food) .
-                         :where [?who :likes ?food]] facts))))
-    (testing "who loves lasagna OR is not human?"
-      (is (match? [:garfield :enzo]
-                  (d/q '[:find [?who ...]
-                         :where (or [?who :likes "lasagna"]
-                                    [?who :human? false])] facts))))))
-
 ;;
-;; BASICS
-;;
-;;         Datomic is a database system that stores data as immutable facts,
-;;         which are called "datoms".
-;;
-;;         A datom represents a piece of information in the form of a tuple
-;;         with four components:
-;;
-;;           - Entity ID:       a unique identifier for the entity that the
-;;                              datom pertains to.
-;;
-;;           - Attribute ID:    a unique identifier for the attribute that
-;;                              the datom pertains to.
-;;
-;;           - Value:           the value of the attribute for the entity.
-;;
-;;           - Transaction ID:  a unique identifier for the transaction that
-;;                              added the datom to the database.
-;;
-;;         The combination of these four components forms a unique identifier
-;;         for each datom in the database.
-;;
-;;         Datoms are always added to the database as part of a transaction,
-;;         and once added, they cannot be modified or deleted.
-;;
-;; DATOMS
-;;
-;;        +--------+-----------------+---------------------------+--------+
-;;        | Entity | Attribute       | Value                     | Tx     |
-;;        +--------+-----------------+---------------------------+--------+
-;;        | 1      | :db/ident       | :task/title               | 1000   |
-;;        | 2      | :db/ident       | :task/description         | 1000   |
-;;        | 3      | :db/ident       | :task/completed           | 1000   |
-;;        | 4      | :db/ident       | :task/due-date            | 1000   |
-;;        | 5      | :db/ident       | :task/priority            | 1000   |
-;;        | 1001   | :task/title     | "Task 1"                  | 2000   |
-;;        | 1001   | :task/completed | false                     | 2000   |
-;;        | 1001   | :task/due-date  | "2023-05-01T10:00:00.000" | 2000   |
-;;        | 1001   | :task/priority  | :high                     | 2000   |
-;;        | 1002   | :task/title     | "Task 2"                  | 3000   |
-;;        | 1002   | :task/completed | true                      | 3000   |
-;;        | 1002   | :task/due-date  | "2023-05-05T14:00:00.000" | 3000   |
-;;        | 1002   | :task/priority  | :medium                   | 3000   |
-;;        +--------+-----------------+---------------------------+--------+
+;; Find Specifications
 ;;
 
-(deftest basics-test
+(deftest find-specifications-test
   (let [conn (database/recreate)
         _ @(d/transact conn tasks/schema)
         _ @(d/transact conn tasks/teams)
         _ @(d/transact conn tasks/tasks)
         db (d/db conn)]
-
-    ;;
-    ;; Find Specifications
-    ;;
-    ;; Where bindings control inputs, find specifications control results.
-    ;;
-    ;;     Find Spec	        Returns	        Java Type Returned
-    ;;
-    ;;     :find ?a ?b	      relation	      Collection of Lists
-    ;;     :find [?a …]	      collection	    Collection
-    ;;     :find [?a ?b]	    single tuple	  List
-    ;;     :find ?a .	        single scalar 	Scalar Value
 
     ;;
     ;; The `relation` find spec is the most common, and the most general.
@@ -120,8 +38,7 @@
                   (d/q '[:find ?bu
                          :where
                          [?t :team/name "Gamma"]
-                         [?t :team/business-unit ?bu]]
-                       db))))
+                         [?t :team/business-unit ?bu]] db))))
 
     ;;
     ;; The `collection` find spec is useful when you are only interested in a single variable.
@@ -139,8 +56,7 @@
                   (d/q '[:find [?title ...]
                          :where
                          [?t :task/due-date]
-                         [?t :task/title ?title]]
-                       db))))
+                         [?t :task/title ?title]] db))))
 
     ;;
     ;; The `single tuple` find spec is useful when you are interested in multiple variables,
@@ -157,8 +73,7 @@
                          [?t :task/title "Sweep the floor"]
                          [?t :task/priority ?priority]
                          [?t :task/due-date ?due-date]
-                         [?t :task/completed ?completed]]
-                       db))))
+                         [?t :task/completed ?completed]] db))))
 
     ;;
     ;; The `scalar` find spec is useful when you want to return a single value
@@ -170,8 +85,7 @@
                   (d/q '[:find ?bu .
                          :where
                          [?t :team/name "Gamma"]
-                         [?t :team/business-unit ?bu]]
-                       db))))
+                         [?t :team/business-unit ?bu]] db))))
 
     (testing "tasks for `2024`"
       (is (match? ["Clean the windows"]
@@ -179,8 +93,7 @@
                          :where
                          [?t :task/due-date ?due-date]
                          [(>= ?due-date #inst "2024")]
-                         [?t :task/title ?title]]
-                       db))))
+                         [?t :task/title ?title]] db))))
 
     (testing "completed tasks for team `Alpha`"
       (is (match? (m/in-any-order ["Dust the shelves"
@@ -189,14 +102,12 @@
                          :where
                          [?t :task/team [:team/name "Alpha"]]
                          [?t :task/completed true]
-                         [?t :task/title ?title]]
-                       db))))
+                         [?t :task/title ?title]] db))))
 
     (testing "pending tasks"
       (is (match? 7
                   (d/q '[:find (count ?t) .
-                         :where [?t :task/completed false]]
-                       db))))
+                         :where [?t :task/completed false]] db))))
 
     (testing "pending tasks by business-unit"
       (is (match? [["Omega" 2]
@@ -205,15 +116,47 @@
                          :where
                          [?task :task/completed false]
                          [?task :task/team ?team]
-                         [?team :team/business-unit ?bu]]
-                       db))))))
+                         [?team :team/business-unit ?bu]] db))))))
 
-(deftest parameterized-query-test
+;;
+;; Inputs
+;;
+
+(deftest inputs-test
   (let [conn (database/recreate)
         _ @(d/transact conn tasks/schema)
         _ @(d/transact conn tasks/teams)
         _ @(d/transact conn tasks/tasks)
         db (d/db conn)]
+
+    ;;
+    ;; Implicit Database
+    ;;
+
+    (testing "`$database` was there all the time"
+      (is (match? 3
+                  (d/q '[:find (count ?name) .
+                         :in $database
+                         :where [$database _ :team/name ?name]]
+                       db ;; this is $database
+                       ))))
+
+    (testing "when there is just one `$database`, ofter we use just `$`"
+      (is (match? 3
+                  (d/q '[:find (count ?name) .
+                         :in $
+                         :where [$ _ :team/name ?name]]
+                       db ;; this is $
+                       ))))
+
+    (testing "which can be totally omitted with you have no extra dbs or params"
+      (is (match? 3
+                  (d/q '[:find (count ?name) .
+                         :where [_ :team/name ?name]] db))))
+
+    ;;
+    ;; Single scalar
+    ;;
 
     (testing "high priority tasks"
       (is (match? (m/in-any-order ["Water the plants"
@@ -224,39 +167,12 @@
                          :where
                          [?task :task/priority ?priority]
                          [?task :task/title ?title]]
-                       db :high))))
-
-    ;;
-    ;; Not Clauses
-    ;;
-    ;; not clauses allow you to express that one or more logic variables inside
-    ;; a query must not satisfy all of a set of predicates.
-    ;;
-
-    (testing "total unassigned tasks"
-      (is (match? 2
-                  (d/q '[:find (count ?task) .
-                         :where
-                         [?task :task/title]
-                         (not [?task :task/team])]
-                       db))))
-
-    (testing "teams without high priority tasks"
-      (is (match? "Gamma"
-                  (d/q '[:find ?team-name .
-                         :where
-                         [?team :team/name ?team-name]
-                         (not-join [?team]
-                                   [?task :task/team ?team]
-                                   [?task :task/priority :high])]
-                       db))))
+                       db    ;; this is $
+                       :high ;; this is ?priority
+                       ))))
 
     ;;
     ;; Collection Binding
-    ;;
-    ;; A collection binding binds a single variable to multiple values
-    ;; passed in as a collection. This can be used to ask "or" questions
-    ;;
     ;; https://docs.datomic.com/on-prem/query/query.html#collection-binding
     ;;
     (testing "tasks for teams `Beta` OR `Gamma`"
@@ -266,16 +182,12 @@
                          :where
                          [?task :task/team ?team]
                          [?team :team/name ?teams]]
-                       db ["Beta" "Gamma"]))))
+                       db               ;; this is $
+                       ["Beta" "Gamma"] ;; this is ?teams
+                       ))))
 
     ;;
     ;; Relation Binding
-    ;;
-    ;; A relation binding is fully general, binding multiple variables positionally to a
-    ;; relation (collection of tuples) passed in.
-    ;;
-    ;; This can be used to ask "or" questions involving multiple variables.
-    ;;
     ;; https://docs.datomic.com/on-prem/query/query.html#relation-binding
     ;;
     (testing "(pending AND low priority) OR (completed AND medium priority) tasks"
@@ -290,8 +202,45 @@
                          [?task :task/title ?title]
                          [?task :task/team ?team]
                          [?team :team/name ?team-name]]
-                       db [[:low false]
-                           [:medium true]]))))))
+                       ;; this is $
+                       db
+                       ;; this destructured into ?priority and ?completed
+                       [[:low false]
+                        [:medium true]]))))))
+
+;;
+;; Not Clauses
+;;
+;; not clauses allow you to express that one or more logic variables inside
+;; a query must not satisfy all of a set of predicates.
+;;
+
+(deftest not-clauses-test
+  (let [conn (database/recreate)
+        _ @(d/transact conn tasks/schema)
+        _ @(d/transact conn tasks/teams)
+        _ @(d/transact conn tasks/tasks)
+        db (d/db conn)]
+
+    (testing "total unassigned tasks"
+      (is (match? 2
+                  (d/q '[:find (count ?task) .
+                         :where
+                         [?task :task/title]
+                         (not [?task :task/team])] db))))
+
+    (testing "teams without high priority tasks"
+      (is (match? "Gamma"
+                  (d/q '[:find ?team-name .
+                         :where
+                         [?team :team/name ?team-name]
+                         (not-join [?team]
+                                   [?task :task/team ?team]
+                                   [?task :task/priority :high])] db))))))
+
+;;
+;; Function Expression
+;;
 
 (deftest function-expressions-test
   (let [conn (database/recreate)
@@ -310,15 +259,10 @@
                        db))))))
 
 ;;
-;; Datomic Pull
-;;
-;; Pull is a declarative way to make hierarchical (and possibly nested) selections
-;; of information about entities.
-;;
-;; Pull applies a pattern to a collection of entities, building a map for each entity.
+;; Pull API
 ;;
 
-(deftest pull-test
+(deftest pull-api-test
   (let [conn (database/recreate)
         _ @(d/transact conn inventory/schema)
         _ @(d/transact conn inventory/inventory)
@@ -363,12 +307,17 @@
                             {:inventory/colors [:db/ident]}]
                           [:inventory/sku "white-pants"]))))))
 
+;;
+;; Reverse Lookup
+;;
+
 (deftest reverse-lookup-test
   (let [conn (database/recreate)
         _ @(d/transact conn tasks/schema)
         _ @(d/transact conn tasks/teams)
         _ @(d/transact conn tasks/tasks)
         db (d/db conn)]
+
     (testing "reverse lookup"
       (is (match? {:team/business-unit "Sigma"
                    :task/_team [#:task{:title "Do the laundry"   :priority :medium :completed true}
@@ -378,6 +327,10 @@
                   (d/q '[:find (pull ?team [:team/business-unit
                                             {:task/_team [:task/title :task/priority :task/completed]}]) .
                          :where [?team :team/name "Beta"]] db))))))
+
+;;
+;; History API
+;;
 
 (deftest history-test
   (let [conn (database/recreate)
@@ -412,3 +365,90 @@
                                 [?tx :db/txInstant ?when]]
                               (d/history (d/db conn)) task-title)
                          (sort-by first))))))))
+
+;;
+;; Entity API
+;;
+
+(deftest entity-api-test
+  (let [conn (database/recreate)
+        _ @(d/transact conn tasks/schema)
+        _ @(d/transact conn tasks/teams)
+        _ @(d/transact conn tasks/tasks)
+        db (d/db conn)
+        beta-team (d/entity db [:team/name "Beta"])
+        any-task-id (d/q '[:find ?t . :where [?t :task/title]] db)]
+
+    (testing "beta looks like just a simple map with an id"
+      (is (match? {:db/id int?}
+                  beta-team)))
+
+    (testing "but it is actually an EntityMap, which is lazy"
+      (is (match? datomic.query.EntityMap
+                  (class beta-team))))
+
+    (testing "from which we can access specific attributes"
+      (is (match? "Sigma"
+                  (:team/business-unit beta-team))))
+
+    (testing "or all of them in any way we want"
+      (is (match? [:team/name :team/business-unit]
+                  (keys beta-team))))
+
+    (testing "like this"
+      (is (match? [[:task/title string?]
+                   [:task/completed boolean?]
+                   [:task/priority keyword?]
+                   [:task/team {:db/id int?}]]
+                  (seq (d/entity db any-task-id)))))
+
+    (testing "or even this"
+      (is (match? {:db/id int?
+                   :task/title string?
+                   :task/completed boolean?
+                   :task/priority keyword?
+                   :task/team {:db/id int?}}
+                  (d/touch (d/entity db any-task-id)))))
+
+    (testing "and this also works"
+      (is (match? (m/in-any-order ["Water the plants"
+                                   "Mow the lawn"
+                                   "Iron the clothes"
+                                   "Do the laundry"])
+                  (->> beta-team
+                       :task/_team
+                       (map #(:task/title (d/entity db (:db/id %))))))))))
+;;
+;; BYO data
+;;
+
+(deftest bring-your-own-data-test
+  (let [facts [[:bruna    :human?   true]
+               [:bruna    :likes    "sushi"]
+               [:enzo     :human?   false]
+               [:enzo     :likes    "sushi"]
+               [:rafa     :likes    "barbecue"]
+               [:rafa     :human?   true]
+               [:garfield :likes    "lasagna"]
+               [:garfield :human?   false]]]
+
+    (testing "rafa likes barbecue"
+      (is (match? :rafa
+                  (d/q '[:find ?who .
+                         :where [?who :likes "barbecue"]] facts))))
+
+    (testing "there are two humans"
+      (is (match? 2
+                  (d/q '[:find (count ?who) .
+                         :where [?who :human? true]] facts))))
+
+    (testing "sushi is the favorite food"
+      (is (match? ["sushi"]
+                  (d/q '[:find (max 1 ?food) .
+                         :where [?who :likes ?food]] facts))))
+
+    (testing "who loves lasagna OR is not human?"
+      (is (match? [:garfield :enzo]
+                  (d/q '[:find [?who ...]
+                         :where (or [?who :likes "lasagna"]
+                                    [?who :human? false])] facts))))))
