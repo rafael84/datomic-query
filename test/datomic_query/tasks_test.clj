@@ -8,6 +8,33 @@
    [matcher-combinators.matchers :as m]
    [matcher-combinators.test :refer [match?]]))
 
+(deftest query-using-my-own-data-test
+  (let [facts [[:bruna    :human?   true]
+               [:bruna    :likes    "sushi"]
+               [:enzo     :human?   false]
+               [:enzo     :likes    "sushi"]
+               [:rafa     :likes    "barbecue"]
+               [:rafa     :human?   true]
+               [:garfield :likes    "lasagna"]
+               [:garfield :human?   false]]]
+    (testing "rafa likes barbecue"
+      (is (match? :rafa
+                  (d/q '[:find ?who .
+                         :where [?who :likes "barbecue"]] facts))))
+    (testing "there are two humans"
+      (is (match? 2
+                  (d/q '[:find (count ?who) .
+                         :where [?who :human? true]] facts))))
+    (testing "sushi is the favorite food"
+      (is (match? ["sushi"]
+                  (d/q '[:find (max 1 ?food) .
+                         :where [?who :likes ?food]] facts))))
+    (testing "who loves lasagna OR is not human?"
+      (is (match? [:garfield :enzo]
+                  (d/q '[:find [?who ...]
+                         :where (or [?who :likes "lasagna"]
+                                    [?who :human? false])] facts))))))
+
 ;;
 ;; BASICS
 ;;
