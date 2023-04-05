@@ -1,22 +1,15 @@
 # datomic-query
 
-A Clojure library designed to ... well, that part is up to you.
+Practical examples on how to query data from Datomic.
 
-## Usage
+* Find Specifications
+* Inputs
+* Not Clauses
+* Function Expression
+* Pull API
+* Reverse Lookup
+* History API
+* Entity API
+* BYO data
 
-FIXME
-
-## License
-
-Copyright © 2023 FIXME
-
-This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-http://www.eclipse.org/legal/epl-2.0.
-
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
+Check the `test/datomic_query/all_test.clj`.
