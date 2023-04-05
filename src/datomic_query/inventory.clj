@@ -1,9 +1,5 @@
 (ns datomic-query.inventory)
 
-(def colors [:black :white :purple])
-
-(def types [:shirt :dress])
-
 (def schema
   [{:db/ident :inventory/sku
     :db/valueType :db.type/string
