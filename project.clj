@@ -7,5 +7,4 @@
              :repl {}}
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [com.datomic/datomic-free "0.9.5697"]
-                 [nubank/matcher-combinators "3.8.4"]]
-  :repl-options {:init-ns datomic-query.core})
+                 [nubank/matcher-combinators "3.8.4"]])
