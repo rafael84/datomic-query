@@ -317,6 +317,14 @@
                                          {:inventory/colors [:db/ident]}]) .
                          :where [?i :inventory/sku "black-shirt"]] db))))
 
+    (testing "pull all shirts and their main color"
+      (is (match? [#:inventory{:sku "purple-white-shirt" :price 25 :colors [{:db/ident :white}]}
+                   #:inventory{:sku "black-shirt"        :price 10 :colors [{:db/ident :black}]}]
+                  (d/q '[:find [(pull ?i [:inventory/sku
+                                          :inventory/price
+                                          {(:inventory/colors :limit 1) [:db/ident]}]) ...]
+                         :where [?i :inventory/type :shirt]] db))))
+
     (testing "pull purple white shirt data, with references"
       (is (match? {:inventory/sku "purple-white-shirt"
                    :inventory/colors (m/in-any-order [{:db/ident :purple}
@@ -334,7 +342,8 @@
                    :inventory/type {:db/ident :pants}
                    :inventory/price 30}
                   (d/pull db
-                          '[* {:inventory/type [:db/ident]}
+                          '[*
+                            {:inventory/type [:db/ident]}
                             {:inventory/colors [:db/ident]}]
                           [:inventory/sku "white-pants"]))))))
 
